@@ -3,7 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { SectorService } from '../../../core/services/sector.service';
-import { Sector } from '../../../core/models';
+import { UserService } from '../../../core/services/user.service';
+import { Sector, User } from '../../../core/models';
 import { ShellComponent } from '../../../shared/shell/shell.component';
 
 @Component({
@@ -34,11 +35,17 @@ import { ShellComponent } from '../../../shared/shell/shell.component';
 
           <!-- Adicionar membro RF11 -->
           <div class="add-member">
-            <h4>Adicionar membro por ID</h4>
+            <h4>Adicionar membro</h4>
             <div class="add-row">
-              <input type="text" [(ngModel)]="newMemberId" placeholder="UUID do usuário" class="form-control" />
+              <select [(ngModel)]="newMemberId" class="form-control">
+                <option value="">Selecione um usuário...</option>
+                <option *ngFor="let u of availableUsers()" [value]="u.id">
+                  {{ u.first_name }} {{ u.last_name }} — {{ u.email }}
+                </option>
+              </select>
               <button (click)="addMember()" class="btn btn-primary" [disabled]="!newMemberId">Adicionar</button>
             </div>
+            <p *ngIf="availableUsers().length === 0" class="no-users">Nenhum usuário disponível para adicionar.</p>
             <div *ngIf="memberError()" class="alert-error">{{ memberError() }}</div>
           </div>
         </div>
@@ -67,20 +74,29 @@ import { ShellComponent } from '../../../shared/shell/shell.component';
     .form-control { flex:1;padding:.55rem .8rem;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem; }
     .btn { padding:.55rem 1.1rem;border:none;border-radius:8px;cursor:pointer;font-weight:600; }
     .btn-primary { background:#4f46e5;color:#fff; }
+    .btn-primary:disabled { background:#a5b4fc;cursor:not-allowed; }
+    .no-users { font-size:.85rem;color:#9ca3af;margin-top:.5rem; }
     .alert-error { background:#fee2e2;color:#dc2626;padding:.5rem;border-radius:6px;margin-top:.5rem;font-size:.85rem; }
   `],
 })
 export class SectorDetailComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private sectorService = inject(SectorService);
+  private userService = inject(UserService);
 
   sector = signal<Sector | null>(null);
+  availableUsers = signal<User[]>([]);
   newMemberId = '';
   memberError = signal('');
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id')!;
     this.sectorService.getById(id).subscribe({ next: (s) => this.sector.set(s) });
+    this.loadAvailableUsers();
+  }
+
+  private loadAvailableUsers(): void {
+    this.userService.listAvailable().subscribe({ next: (users) => this.availableUsers.set(users) });
   }
 
   addMember(): void {
@@ -88,7 +104,11 @@ export class SectorDetailComponent implements OnInit {
     if (!s) return;
     this.memberError.set('');
     this.sectorService.addMember(s.id, this.newMemberId).subscribe({
-      next: (updated) => { this.sector.set(updated); this.newMemberId = ''; },
+      next: (updated) => {
+        this.sector.set(updated);
+        this.newMemberId = '';
+        this.loadAvailableUsers();
+      },
       error: (err) => this.memberError.set(err?.error?.detail ?? 'Erro ao adicionar membro.'),
     });
   }
@@ -97,7 +117,10 @@ export class SectorDetailComponent implements OnInit {
     const s = this.sector();
     if (!s) return;
     this.sectorService.removeMember(s.id, userId).subscribe({
-      next: (updated) => this.sector.set(updated),
+      next: (updated) => {
+        this.sector.set(updated);
+        this.loadAvailableUsers();
+      },
       error: (err) => alert(err?.error?.detail ?? 'Erro ao remover membro.'),
     });
   }

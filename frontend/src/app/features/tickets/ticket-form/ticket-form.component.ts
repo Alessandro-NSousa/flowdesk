@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { SectorService } from '../../../core/services/sector.service';
 import { TicketService } from '../../../core/services/ticket.service';
-import { Sector } from '../../../core/models';
+import { Sector, Ticket } from '../../../core/models';
 import { ShellComponent } from '../../../shared/shell/shell.component';
 
 @Component({
@@ -33,7 +33,7 @@ import { ShellComponent } from '../../../shared/shell/shell.component';
                 <label>Setor solicitante *</label>
                 <select [(ngModel)]="form.requesting_sector_id" name="requestingSector" required class="form-control">
                   <option value="">Selecione...</option>
-                  <option *ngFor="let s of sectors()" [value]="s.id">{{ s.name }}</option>
+                  <option *ngFor="let s of mySectors()" [value]="s.id">{{ s.name }}</option>
                 </select>
               </div>
 
@@ -41,7 +41,7 @@ import { ShellComponent } from '../../../shared/shell/shell.component';
                 <label>Setor responsável *</label>
                 <select [(ngModel)]="form.responsible_sector_id" name="responsibleSector" required class="form-control">
                   <option value="">Selecione...</option>
-                  <option *ngFor="let s of sectors()" [value]="s.id">{{ s.name }}</option>
+                  <option *ngFor="let s of allSectors()" [value]="s.id">{{ s.name }}</option>
                 </select>
               </div>
             </div>
@@ -55,6 +55,22 @@ import { ShellComponent } from '../../../shared/shell/shell.component';
               </button>
             </div>
           </form>
+        </div>
+      </div>
+
+      <!-- Modal de sucesso -->
+      <div *ngIf="successTicket()" class="modal-overlay">
+        <div class="modal">
+          <div class="modal-icon">✓</div>
+          <h3>Chamado aberto com sucesso!</h3>
+          <p class="modal-info">
+            <strong>{{ successTicket()!.title }}</strong><br>
+            Protocolo: <span class="protocol">{{ successTicket()!.id.slice(0, 8).toUpperCase() }}</span>
+          </p>
+          <div class="modal-actions">
+            <button (click)="goToTicket()" class="btn btn-primary">Ver chamado</button>
+            <button (click)="newTicket()" class="btn btn-outline">Abrir outro</button>
+          </div>
         </div>
       </div>
     </fd-shell>
@@ -75,6 +91,14 @@ import { ShellComponent } from '../../../shared/shell/shell.component';
     .btn-primary:disabled { background:#a5b4fc;cursor:not-allowed; }
     .btn-outline { background:#fff;border:1px solid #d1d5db;color:#374151; }
     .alert-error { background:#fee2e2;color:#dc2626;padding:.6rem;border-radius:6px;margin-bottom:.75rem;font-size:.85rem; }
+    /* Modal */
+    .modal-overlay { position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:1000; }
+    .modal { background:#fff;border-radius:16px;padding:2.5rem 2rem;max-width:420px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.18); }
+    .modal-icon { width:56px;height:56px;border-radius:50%;background:#d1fae5;color:#059669;font-size:1.75rem;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem; }
+    .modal h3 { font-size:1.2rem;font-weight:700;color:#111827;margin-bottom:.75rem; }
+    .modal-info { color:#6b7280;font-size:.9rem;margin-bottom:1.5rem;line-height:1.6; }
+    .protocol { font-family:monospace;background:#f3f4f6;padding:.15rem .4rem;border-radius:4px;color:#374151; }
+    .modal-actions { display:flex;gap:.75rem;justify-content:center; }
   `],
 })
 export class TicketFormComponent implements OnInit {
@@ -82,9 +106,11 @@ export class TicketFormComponent implements OnInit {
   private ticketService = inject(TicketService);
   private router = inject(Router);
 
-  sectors = signal<Sector[]>([]);
+  mySectors = signal<Sector[]>([]);
+  allSectors = signal<Sector[]>([]);
   loading = signal(false);
   error = signal('');
+  successTicket = signal<Ticket | null>(null);
 
   form = {
     title: '',
@@ -95,7 +121,10 @@ export class TicketFormComponent implements OnInit {
 
   ngOnInit(): void {
     this.sectorService.getMine().subscribe({
-      next: (res) => this.sectors.set(res.results),
+      next: (res) => this.mySectors.set(res.results),
+    });
+    this.sectorService.getAll().subscribe({
+      next: (res) => this.allSectors.set(res.results),
     });
   }
 
@@ -108,15 +137,39 @@ export class TicketFormComponent implements OnInit {
     this.error.set('');
 
     this.ticketService.create(this.form).subscribe({
-      next: (ticket) => this.router.navigate(['/tickets', ticket.id]),
-      error: (err) => {
-        this.error.set(err?.error?.detail ?? 'Erro ao criar chamado.');
+      next: (ticket) => {
         this.loading.set(false);
+        this.successTicket.set(ticket);
+      },
+      error: (err) => {
+        this.loading.set(false);
+        const status = err?.status;
+        if (status === 0) {
+          this.error.set('Sem conexão com o servidor. Verifique sua internet e tente novamente.');
+        } else if (status === 403) {
+          this.error.set('Você não tem permissão para abrir um chamado para este setor.');
+        } else if (status >= 500) {
+          this.error.set('Erro interno no servidor. Tente novamente em instantes.');
+        } else {
+          this.error.set(err?.error?.detail ?? 'Não foi possível criar o chamado. Verifique os dados e tente novamente.');
+        }
       },
     });
+  }
+
+  goToTicket(): void {
+    const ticket = this.successTicket();
+    if (ticket) this.router.navigate(['/tickets', ticket.id]);
+  }
+
+  newTicket(): void {
+    this.successTicket.set(null);
+    this.form = { title: '', description: '', requesting_sector_id: '', responsible_sector_id: '' };
+    this.error.set('');
   }
 
   cancel(): void {
     this.router.navigate(['/tickets']);
   }
 }
+

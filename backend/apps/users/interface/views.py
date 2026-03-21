@@ -36,7 +36,12 @@ class UserListCreateView(generics.ListCreateAPIView):
     """Admin lista e cria usuários diretamente."""
     permission_classes = [IsAuthenticated, IsAdminUser]
     serializer_class = UserSerializer
-    queryset = User.objects.all().order_by("first_name", "last_name")
+
+    def get_queryset(self):
+        qs = User.objects.all().order_by("first_name", "last_name")
+        if self.request.query_params.get("available") == "true":
+            qs = qs.filter(sectors__isnull=True)
+        return qs
 
     def create(self, request, *args, **kwargs):
         serializer = CreateUserSerializer(data=request.data)

@@ -14,6 +14,10 @@ export class UserService {
     return this.http.get<PaginatedResponse<User>>(this.API).pipe(map((res) => res.results));
   }
 
+  listAvailable(): Observable<User[]> {
+    return this.http.get<PaginatedResponse<User>>(this.API, { params: { available: 'true' } }).pipe(map((res) => res.results));
+  }
+
   create(payload: CreateUserPayload): Observable<User> {
     return this.http.post<User>(this.API, payload);
   }
