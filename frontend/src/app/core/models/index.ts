@@ -47,6 +47,13 @@ export interface TicketStatus {
   order: number;
 }
 
+export interface TicketObservation {
+  id: string;
+  content: string;
+  created_by: User;
+  created_at: string;
+}
+
 export interface Ticket {
   id: string;
   title: string;
@@ -58,6 +65,7 @@ export interface Ticket {
   updated_by: User | null;
   created_at: string;
   updated_at: string;
+  observations: TicketObservation[];
 }
 
 export interface PaginatedResponse<T> {

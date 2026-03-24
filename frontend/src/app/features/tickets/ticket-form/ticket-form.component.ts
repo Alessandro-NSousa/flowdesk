@@ -65,11 +65,10 @@ import { ShellComponent } from '../../../shared/shell/shell.component';
           <h3>Chamado aberto com sucesso!</h3>
           <p class="modal-info">
             <strong>{{ successTicket()!.title }}</strong><br>
-            Protocolo: <span class="protocol">{{ successTicket()!.id.slice(0, 8).toUpperCase() }}</span>
           </p>
           <div class="modal-actions">
-            <button (click)="goToTicket()" class="btn btn-primary">Ver chamado</button>
-            <button (click)="newTicket()" class="btn btn-outline">Abrir outro</button>
+            <button (click)="goToTickets()" class="btn btn-primary">Ver meus chamados</button>
+            <button (click)="newTicket()" class="btn btn-outline">Abrir novo chamado</button>
           </div>
         </div>
       </div>
@@ -157,9 +156,9 @@ export class TicketFormComponent implements OnInit {
     });
   }
 
-  goToTicket(): void {
+  goToTickets(): void {
     const ticket = this.successTicket();
-    if (ticket) this.router.navigate(['/tickets', ticket.id]);
+    if (ticket) this.router.navigate(['/tickets']);
   }
 
   newTicket(): void {
