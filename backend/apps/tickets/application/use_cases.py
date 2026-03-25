@@ -2,7 +2,7 @@
 Application use-cases for the Tickets bounded context.
 """
 from apps.sectors.infrastructure.models import Sector
-from apps.tickets.infrastructure.models import Ticket, TicketStatus
+from apps.tickets.infrastructure.models import Ticket, TicketObservation, TicketStatus
 from apps.users.infrastructure.models import User
 
 
@@ -85,6 +85,8 @@ class CreateTicketUseCase:
 class UpdateTicketUseCase:
     """RF15 – Apenas setor responsável pode atualizar o chamado."""
 
+    DONE_STATUS_NAME = "Concluído"
+
     def execute(
         self,
         ticket_id: str,
@@ -92,8 +94,13 @@ class UpdateTicketUseCase:
         status_id: str | None = None,
         title: str | None = None,
         description: str | None = None,
+        observation: str | None = None,
     ) -> Ticket:
-        ticket = Ticket.objects.select_related("responsible_sector").get(pk=ticket_id)
+        ticket = Ticket.objects.select_related("responsible_sector", "status").get(pk=ticket_id)
+
+        # Chamados concluídos são imutáveis
+        if ticket.status.name == self.DONE_STATUS_NAME:
+            raise ValueError("Chamados concluídos não podem ser alterados.")
 
         # Admin pode sempre; usuário comum precisa ser do setor responsável
         if not requesting_user.is_admin:
@@ -104,8 +111,22 @@ class UpdateTicketUseCase:
             ticket.title = title
         if description is not None:
             ticket.description = description
+
         if status_id is not None:
-            ticket.status = TicketStatus.objects.get(pk=status_id)
+            new_status = TicketStatus.objects.get(pk=status_id)
+            if new_status.name == self.DONE_STATUS_NAME:
+                if not observation or not observation.strip():
+                    raise ValueError("É obrigatório adicionar uma observação ao concluir o chamado.")
+                ticket.status = new_status
+                ticket.updated_by = requesting_user
+                ticket.save()
+                TicketObservation.objects.create(
+                    ticket=ticket,
+                    content=observation.strip(),
+                    created_by=requesting_user,
+                )
+                return ticket
+            ticket.status = new_status
 
         ticket.updated_by = requesting_user
         ticket.save()

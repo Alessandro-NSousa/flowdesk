@@ -82,3 +82,31 @@ class Ticket(models.Model):
 
     def __str__(self) -> str:
         return f"#{str(self.id)[:8]} – {self.title}"
+
+
+class TicketObservation(models.Model):
+    """Observação obrigatória ao concluir um chamado."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    ticket = models.ForeignKey(
+        Ticket,
+        on_delete=models.CASCADE,
+        related_name="observations",
+        verbose_name="Chamado",
+    )
+    content = models.TextField(verbose_name="Observação")
+    created_by = models.ForeignKey(
+        "users.User",
+        on_delete=models.PROTECT,
+        related_name="ticket_observations",
+        verbose_name="Criado por",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
+
+    class Meta:
+        db_table = "ticket_observations"
+        verbose_name = "Observação de chamado"
+        verbose_name_plural = "Observações de chamados"
+        ordering = ["created_at"]
+
+    def __str__(self) -> str:
+        return f"Observação – {self.ticket}"
