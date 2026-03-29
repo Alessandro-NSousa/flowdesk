@@ -26,11 +26,11 @@ import { ShellComponent } from '../../../shared/shell/shell.component';
 
           <div class="ticket-meta">
             <div class="meta-item">
-              <span class="meta-label">Solicitante</span>
+              <span class="meta-label">Setor Solicitante</span>
               <span>{{ ticket()!.requesting_sector.name }}</span>
             </div>
             <div class="meta-item">
-              <span class="meta-label">Responsável</span>
+              <span class="meta-label">Setor Responsável</span>
               <span>{{ ticket()!.responsible_sector.name }}</span>
             </div>
             <div class="meta-item">
@@ -41,10 +41,20 @@ import { ShellComponent } from '../../../shared/shell/shell.component';
               <span class="meta-label">Criado em</span>
               <span>{{ ticket()!.created_at | date:'dd/MM/yyyy HH:mm' }}</span>
             </div>
+            <ng-container *ngIf="isDone() && ticket()!.updated_by">
+              <div class="meta-item">
+                <span class="meta-label">Finalizado por</span>
+                <span>{{ ticket()!.updated_by!.first_name }} {{ ticket()!.updated_by!.last_name }}</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">Data de Conclusão</span>
+                <span>{{ ticket()!.updated_at | date:'dd/MM/yyyy HH:mm' }}</span>
+              </div>
+            </ng-container>
           </div>
 
           <div class="ticket-description">
-            <h4>Descrição</h4>
+            <h4>Descrição da Solicitação</h4>
             <p>{{ ticket()!.description }}</p>
           </div>
 
@@ -62,7 +72,9 @@ import { ShellComponent } from '../../../shared/shell/shell.component';
 
           <!-- Chamado concluído: bloqueado -->
           <div class="ticket-done-notice" *ngIf="isDone()">
-            <span>&#10003; Chamadohamado finalizado.</span>
+            <span>&#10003; Chamado finalizado
+              
+            </span>
           </div>
 
           <!-- Atualização (RF15 – apenas setor responsável) -->
@@ -120,7 +132,7 @@ import { ShellComponent } from '../../../shared/shell/shell.component';
     .obs-author { font-size:.8rem;font-weight:600;color:#374151; }
     .obs-date { font-size:.8rem;color:#9ca3af; }
     .obs-content { color:#4b5563;font-size:.9rem;line-height:1.5;margin:0; }
-    .ticket-done-notice { margin-top:1.5rem;padding:.75rem 1rem;background:#d1fae5;color:#065f46;border-radius:8px;font-weight:600;font-size:.9rem; }
+    .ticket-done-notice { margin-top:1.5rem;padding:.75rem 1rem;background:#d1fae5;color:#065f46;border-radius:8px;font-weight:500;font-size:.9rem;line-height:1.5; }
     .ticket-update { margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid #f3f4f6; }
     .ticket-update h4 { font-size:.95rem;font-weight:600;margin-bottom:1rem; }
     .form-group { margin-bottom:1rem; }

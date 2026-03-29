@@ -67,8 +67,8 @@ import { ShellComponent } from '../../../shared/shell/shell.component';
             <strong>{{ successTicket()!.title }}</strong><br>
           </p>
           <div class="modal-actions">
-            <button (click)="goToTickets()" class="btn btn-primary">Ver meus chamados</button>
-            <button (click)="newTicket()" class="btn btn-outline">Abrir novo chamado</button>
+            <button (click)="goToTickets()" class="btn btn-primary">Ver chamados</button>
+            <button (click)="newTicket()" class="btn btn-outline">Abrir outro</button>
           </div>
         </div>
       </div>
