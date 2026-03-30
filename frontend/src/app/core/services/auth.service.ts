@@ -12,6 +12,7 @@ interface JwtPayload {
   full_name: string;
   is_admin: boolean;
   must_change_password: boolean;
+  can_assign_tickets: boolean;
   exp: number;
 }
 
@@ -75,6 +76,10 @@ export class AuthService {
 
   isAdmin(): boolean {
     return this.getCurrentUser()?.is_admin ?? false;
+  }
+
+  canAssignTickets(): boolean {
+    return this.getCurrentUser()?.can_assign_tickets ?? false;
   }
 
   changePassword(payload: ChangePasswordPayload): Observable<unknown> {

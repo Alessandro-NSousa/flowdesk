@@ -38,15 +38,21 @@ export class TicketService {
     description: string;
     requesting_sector_id: string;
     responsible_sector_id: string;
+    assigned_to_id?: string | null;
   }): Observable<Ticket> {
     return this.http.post<Ticket>(this.BASE + '/', data);
   }
 
   update(
     id: string,
-    data: { title?: string; description?: string; status_id?: string }
+    data: { title?: string; description?: string; status_id?: string; assigned_to_id?: string | null; observation?: string }
   ): Observable<Ticket> {
     return this.http.patch<Ticket>(`${this.BASE}/${id}/`, data);
+  }
+
+  assign(id: string, userId?: string): Observable<Ticket> {
+    const body = userId ? { user_id: userId } : {};
+    return this.http.post<Ticket>(`${this.BASE}/${id}/assign/`, body);
   }
 
   getStatuses(): Observable<PaginatedResponse<TicketStatus>> {

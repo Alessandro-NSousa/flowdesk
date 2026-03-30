@@ -40,18 +40,25 @@ import { ShellComponent } from '../../../shared/shell/shell.component';
         <table *ngIf="!loading() && tickets().length" class="table">
           <thead>
             <tr>
+              <th>Protocolo</th>
               <th>Título</th>
               <th>Solicitante</th>
               <th>Responsável</th>
+              <th>Atribuído a</th>
               <th>Status</th>
               <th>Criado em</th>
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let t of tickets()">
+            <tr *ngFor="let t of tickets()" [class.unassigned-row]="!t.assigned_to">
+              <td><span class="protocol-badge">{{ t.protocol }}</span></td>
               <td><a [routerLink]="['/tickets', t.id]">{{ t.title }}</a></td>
               <td>{{ t.requesting_sector.name }}</td>
               <td>{{ t.responsible_sector.name }}</td>
+              <td>
+                <span *ngIf="t.assigned_to">{{ t.assigned_to.first_name }} {{ t.assigned_to.last_name }}</span>
+                <span *ngIf="!t.assigned_to" class="badge-unassigned">Livre</span>
+              </td>
               <td><span class="badge" [class]="getBadge(t.status.name)">{{ t.status.name }}</span></td>
               <td>{{ t.created_at | date:'dd/MM/yy' }}</td>
             </tr>
@@ -78,6 +85,8 @@ import { ShellComponent } from '../../../shared/shell/shell.component';
     .filters { display:flex;gap:.75rem;margin-bottom:1.25rem;flex-wrap:wrap; }
     .filter-control { padding:.45rem .75rem;border:1px solid #d1d5db;border-radius:6px;font-size:.85rem;min-width:140px; }
     .table { width:100%;border-collapse:collapse;font-size:.85rem;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.07); }
+    .unassigned-row { background:#fffbeb; }
+    .badge-unassigned { background:#fee2e2;color:#b91c1c;padding:.15rem .5rem;border-radius:12px;font-size:.75rem;font-weight:600; }
     th { text-align:left;padding:.75rem 1rem;border-bottom:2px solid #e5e7eb;font-weight:600;background:#f9fafb; }
     td { padding:.65rem 1rem;border-bottom:1px solid #f3f4f6; }
     td a { color:#4f46e5;font-weight:500; }
@@ -88,6 +97,7 @@ import { ShellComponent } from '../../../shared/shell/shell.component';
     .badge-default { background:#f3f4f6;color:#374151; }
     .pagination { display:flex;justify-content:center;align-items:center;gap:1rem;margin-top:1.5rem; }
     .loading,.empty { color:#6b7280;text-align:center;padding:3rem; }
+    .protocol-badge { font-family:monospace;background:#f3f4f6;padding:.15rem .5rem;border-radius:4px;font-size:.8rem;color:#374151;letter-spacing:.05em;font-weight:600; }
   `],
 })
 export class TicketListComponent implements OnInit {

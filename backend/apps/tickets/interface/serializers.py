@@ -41,12 +41,12 @@ class TicketSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ticket
         fields = [
-            "id", "title", "description",
+            "id", "protocol", "title", "description",
             "requesting_sector", "responsible_sector",
             "status", "created_by", "updated_by", "assigned_to",
             "created_at", "updated_at", "observations",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id", "protocol", "created_at", "updated_at"]
 
 
 class TicketCreateSerializer(serializers.Serializer):

@@ -7,6 +7,7 @@ export interface User {
   is_admin: boolean;
   is_active: boolean;
   must_change_password: boolean;
+  can_assign_tickets: boolean;
   created_at: string;
 }
 
@@ -15,6 +16,7 @@ export interface CreateUserPayload {
   first_name: string;
   last_name: string;
   is_admin: boolean;
+  can_assign_tickets?: boolean;
   sector_id?: string | null;
 }
 
@@ -23,6 +25,7 @@ export interface UpdateUserPayload {
   last_name?: string;
   email?: string;
   is_admin?: boolean;
+  can_assign_tickets?: boolean;
 }
 
 export interface ChangePasswordPayload {
@@ -56,6 +59,7 @@ export interface TicketObservation {
 
 export interface Ticket {
   id: string;
+  protocol: string;
   title: string;
   description: string;
   requesting_sector: Sector;
@@ -63,6 +67,7 @@ export interface Ticket {
   status: TicketStatus;
   created_by: User;
   updated_by: User | null;
+  assigned_to: User | null;
   created_at: string;
   updated_at: string;
   observations: TicketObservation[];
