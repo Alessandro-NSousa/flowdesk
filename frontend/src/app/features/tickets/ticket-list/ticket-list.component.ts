@@ -26,13 +26,24 @@ import { ShellComponent } from '../../../shared/shell/shell.component';
           </select>
           <input
             type="text"
-            [(ngModel)]="filters.search"
+            [(ngModel)]="filters.protocol"
             (input)="applyFilters()"
-            placeholder="Buscar..."
+            placeholder="Filtrar por protocolo"
             class="filter-control"
           />
-          <input type="date" [(ngModel)]="filters.created_after" (ngModelChange)="applyFilters()" class="filter-control" />
-          <input type="date" [(ngModel)]="filters.created_before" (ngModelChange)="applyFilters()" class="filter-control" />
+          <input
+            type="text"
+            [(ngModel)]="filters.search"
+            (input)="applyFilters()"
+            placeholder="Buscar por título ou descrição"
+            class="filter-control"
+          />
+          <label class="filter-label">De:
+            <input type="date" [(ngModel)]="filters.created_after" (ngModelChange)="applyFilters()" class="filter-control" />
+          </label>
+          <label class="filter-label">Até:
+            <input type="date" [(ngModel)]="filters.created_before" (ngModelChange)="applyFilters()" class="filter-control" />
+          </label>
         </div>
 
         <div *ngIf="loading()" class="loading">Carregando...</div>
@@ -98,6 +109,7 @@ import { ShellComponent } from '../../../shared/shell/shell.component';
     .pagination { display:flex;justify-content:center;align-items:center;gap:1rem;margin-top:1.5rem; }
     .loading,.empty { color:#6b7280;text-align:center;padding:3rem; }
     .protocol-badge { font-family:monospace;background:#f3f4f6;padding:.15rem .5rem;border-radius:4px;font-size:.8rem;color:#374151;letter-spacing:.05em;font-weight:600; }
+    .filter-label { display:flex;align-items:center;gap:.35rem;font-size:.8rem;color:#6b7280;white-space:nowrap; }
   `],
 })
 export class TicketListComponent implements OnInit {
@@ -109,7 +121,7 @@ export class TicketListComponent implements OnInit {
   currentPage = signal(1);
   totalPages = signal(1);
 
-  filters: TicketFilters = {};
+  filters: TicketFilters = { status: '' };
 
   ngOnInit(): void {
     this.loadStatuses();

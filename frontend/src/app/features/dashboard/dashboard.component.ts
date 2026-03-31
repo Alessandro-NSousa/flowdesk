@@ -46,6 +46,7 @@ import { ShellComponent } from '../../shared/shell/shell.component';
           <table *ngIf="!loading() && tickets().length" class="table">
             <thead>
               <tr>
+                <th>Protocolo</th>
                 <th>Título</th>
                 <th>Solicitante</th>
                 <th>Responsável</th>
@@ -55,6 +56,7 @@ import { ShellComponent } from '../../shared/shell/shell.component';
             </thead>
             <tbody>
               <tr *ngFor="let t of tickets()" (click)="goToTicket(t.id)" class="clickable">
+                <td>{{ t.protocol }}</td>
                 <td>{{ t.title }}</td>
                 <td>{{ t.requesting_sector.name }}</td>
                 <td>{{ t.responsible_sector.name }}</td>

@@ -8,6 +8,7 @@ export interface TicketFilters {
   status?: string;
   requesting_sector?: string;
   responsible_sector?: string;
+  protocol?: string;
   created_after?: string;
   created_before?: string;
   search?: string;
