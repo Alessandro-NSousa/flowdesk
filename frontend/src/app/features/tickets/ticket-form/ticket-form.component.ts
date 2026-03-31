@@ -4,7 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { SectorService } from '../../../core/services/sector.service';
 import { TicketService } from '../../../core/services/ticket.service';
-import { Sector, Ticket } from '../../../core/models';
+import { AuthService } from '../../../core/services/auth.service';
+import { Sector, Ticket, User } from '../../../core/models';
 import { ShellComponent } from '../../../shared/shell/shell.component';
 
 @Component({
@@ -39,11 +40,19 @@ import { ShellComponent } from '../../../shared/shell/shell.component';
 
               <div class="form-group">
                 <label>Setor responsável *</label>
-                <select [(ngModel)]="form.responsible_sector_id" name="responsibleSector" required class="form-control">
+                <select [(ngModel)]="form.responsible_sector_id" name="responsibleSector" required class="form-control" (ngModelChange)="onResponsibleSectorChange($event)">
                   <option value="">Selecione...</option>
                   <option *ngFor="let s of allSectors()" [value]="s.id">{{ s.name }}</option>
                 </select>
               </div>
+            </div>
+
+            <div class="form-group" *ngIf="responsibleSectorMembers().length && canAssignOther()">
+              <label>Atribuir para (opcional)</label>
+              <select [(ngModel)]="form.assigned_to_id" name="assignedTo" class="form-control">
+                <option value="">Sem atribuição</option>
+                <option *ngFor="let m of responsibleSectorMembers()" [value]="m.id">{{ m.first_name }} {{ m.last_name }}</option>
+              </select>
             </div>
 
             <div *ngIf="error()" class="alert alert-error">{{ error() }}</div>
@@ -65,6 +74,7 @@ import { ShellComponent } from '../../../shared/shell/shell.component';
           <h3>Chamado aberto com sucesso!</h3>
           <p class="modal-info">
             <strong>{{ successTicket()!.title }}</strong><br>
+            Protocolo: <span class="protocol">{{ successTicket()!.protocol }}</span>
           </p>
           <div class="modal-actions">
             <button (click)="goToTickets()" class="btn btn-primary">Ver chamados</button>
@@ -97,6 +107,7 @@ import { ShellComponent } from '../../../shared/shell/shell.component';
     .modal h3 { font-size:1.2rem;font-weight:700;color:#111827;margin-bottom:.75rem; }
     .modal-info { color:#6b7280;font-size:.9rem;margin-bottom:1.5rem;line-height:1.6; }
     .protocol { font-family:monospace;background:#f3f4f6;padding:.15rem .4rem;border-radius:4px;color:#374151; }
+    .protocol { font-family:monospace;font-weight:700;background:#f3f4f6;padding:.15rem .4rem;border-radius:4px;color:#374151;letter-spacing:.05em; }
     .modal-actions { display:flex;gap:.75rem;justify-content:center; }
   `],
 })
@@ -104,18 +115,27 @@ export class TicketFormComponent implements OnInit {
   private sectorService = inject(SectorService);
   private ticketService = inject(TicketService);
   private router = inject(Router);
+  private auth = inject(AuthService);
 
   mySectors = signal<Sector[]>([]);
   allSectors = signal<Sector[]>([]);
+  responsibleSectorMembers = signal<User[]>([]);
   loading = signal(false);
   error = signal('');
   successTicket = signal<Ticket | null>(null);
 
-  form = {
+  form: {
+    title: string;
+    description: string;
+    requesting_sector_id: string;
+    responsible_sector_id: string;
+    assigned_to_id: string;
+  } = {
     title: '',
     description: '',
     requesting_sector_id: '',
     responsible_sector_id: '',
+    assigned_to_id: '',
   };
 
   ngOnInit(): void {
@@ -127,6 +147,16 @@ export class TicketFormComponent implements OnInit {
     });
   }
 
+  onResponsibleSectorChange(sectorId: string): void {
+    this.form.assigned_to_id = '';
+    if (!sectorId) {
+      this.responsibleSectorMembers.set([]);
+      return;
+    }
+    const sector = this.allSectors().find(s => s.id === sectorId);
+    this.responsibleSectorMembers.set(sector?.members ?? []);
+  }
+
   onSubmit(): void {
     if (!this.form.title || !this.form.description || !this.form.requesting_sector_id || !this.form.responsible_sector_id) {
       this.error.set('Preencha todos os campos obrigatórios.');
@@ -135,7 +165,17 @@ export class TicketFormComponent implements OnInit {
     this.loading.set(true);
     this.error.set('');
 
-    this.ticketService.create(this.form).subscribe({
+    const payload: Parameters<typeof this.ticketService.create>[0] = {
+      title: this.form.title,
+      description: this.form.description,
+      requesting_sector_id: this.form.requesting_sector_id,
+      responsible_sector_id: this.form.responsible_sector_id,
+    };
+    if (this.form.assigned_to_id) {
+      payload.assigned_to_id = this.form.assigned_to_id;
+    }
+
+    this.ticketService.create(payload).subscribe({
       next: (ticket) => {
         this.loading.set(false);
         this.successTicket.set(ticket);
@@ -163,12 +203,19 @@ export class TicketFormComponent implements OnInit {
 
   newTicket(): void {
     this.successTicket.set(null);
-    this.form = { title: '', description: '', requesting_sector_id: '', responsible_sector_id: '' };
+    this.form = { title: '', description: '', requesting_sector_id: '', responsible_sector_id: '', assigned_to_id: '' };
+    this.responsibleSectorMembers.set([]);
     this.error.set('');
   }
 
   cancel(): void {
     this.router.navigate(['/tickets']);
+  }
+
+  canAssignOther(): boolean {
+    const user = this.auth.getCurrentUser();
+    if (!user) return false;
+    return user.is_admin || this.auth.canAssignTickets();
   }
 }
 

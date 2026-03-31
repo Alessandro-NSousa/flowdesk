@@ -1,5 +1,14 @@
+import secrets
 import uuid
 from django.db import models
+
+# Caracteres permitidos: maiúsculas + dígitos, exceto I, L, O, 0
+_PROTOCOL_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ123456789"
+_PROTOCOL_LENGTH = 8
+
+
+def _generate_protocol() -> str:
+    return "".join(secrets.choice(_PROTOCOL_ALPHABET) for _ in range(_PROTOCOL_LENGTH))
 
 
 class TicketStatus(models.Model):
@@ -37,6 +46,14 @@ class TicketStatus(models.Model):
 class Ticket(models.Model):
     """RF13–RF17 – Chamados internos entre setores."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    protocol = models.CharField(
+        max_length=16,
+        unique=True,
+        default=_generate_protocol,
+        editable=False,
+        verbose_name="Protocolo",
+        help_text="Código de identificação único do chamado.",
+    )
     title = models.CharField(max_length=200, verbose_name="Título")
     description = models.TextField(verbose_name="Descrição")
     requesting_sector = models.ForeignKey(
@@ -89,7 +106,7 @@ class Ticket(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
-        return f"#{str(self.id)[:8]} – {self.title}"
+        return f"{self.protocol} – {self.title}"
 
 
 class TicketObservation(models.Model):

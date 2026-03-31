@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TicketService } from '../../../core/services/ticket.service';
 import { AuthService } from '../../../core/services/auth.service';
-import { Ticket, TicketStatus } from '../../../core/models';
+import { Ticket, TicketStatus, User } from '../../../core/models';
 import { ShellComponent } from '../../../shared/shell/shell.component';
 
 @Component({
@@ -26,12 +26,23 @@ import { ShellComponent } from '../../../shared/shell/shell.component';
 
           <div class="ticket-meta">
             <div class="meta-item">
+              <span class="meta-label">Protocolo</span>
+              <span class="protocol-code">{{ ticket()!.protocol }}</span>
+            </div>
+            <div class="meta-item">
               <span class="meta-label">Setor Solicitante</span>
               <span>{{ ticket()!.requesting_sector.name }}</span>
             </div>
             <div class="meta-item">
               <span class="meta-label">Setor Responsável</span>
               <span>{{ ticket()!.responsible_sector.name }}</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Atribuído a</span>
+              <span *ngIf="ticket()!.assigned_to" class="assigned-badge">
+                {{ ticket()!.assigned_to!.first_name }} {{ ticket()!.assigned_to!.last_name }}
+              </span>
+              <span *ngIf="!ticket()!.assigned_to" class="unassigned-badge">Sem atribuição</span>
             </div>
             <div class="meta-item">
               <span class="meta-label">Criado por</span>
@@ -77,6 +88,17 @@ import { ShellComponent } from '../../../shared/shell/shell.component';
             </span>
           </div>
 
+          <!-- Botão de assumir chamado (sem atribuição + membro do setor responsavel + não concluído) -->
+          <div class="ticket-assume" *ngIf="canAssume() && !isDone()">
+            <div class="assume-notice">
+              <span>Este chamado ainda não está atribuído a ninguém.</span>
+              <button (click)="assumeTicket()" class="btn btn-assume" [disabled]="assuming()">
+                {{ assuming() ? 'Aguarde...' : 'Assumir chamado' }}
+              </button>
+            </div>
+            <div *ngIf="assumeError()" class="alert-error">{{ assumeError() }}</div>
+          </div>
+
           <!-- Atualização (RF15 – apenas setor responsável) -->
           <div class="ticket-update" *ngIf="canEdit() && !isDone()">
             <h4>Atualizar chamado</h4>
@@ -85,6 +107,14 @@ import { ShellComponent } from '../../../shared/shell/shell.component';
               <select [(ngModel)]="selectedStatus" class="form-control" (ngModelChange)="onStatusChange()">
                 <option value="">Manter atual</option>
                 <option *ngFor="let s of statuses()" [value]="s.id">{{ s.name }}</option>
+              </select>
+            </div>
+            <div class="form-group" *ngIf="sectorMembers().length && canAssignOther()">
+              <label>Atribuir para</label>
+              <select [(ngModel)]="selectedAssignee" class="form-control">
+                <option value="">Manter atual</option>
+                <option value="__unassign__">Remover atribuição</option>
+                <option *ngFor="let m of sectorMembers()" [value]="m.id">{{ m.first_name }} {{ m.last_name }}</option>
               </select>
             </div>
             <div class="form-group" *ngIf="isSelectingDone()">
@@ -123,6 +153,7 @@ import { ShellComponent } from '../../../shared/shell/shell.component';
     .ticket-meta { display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-bottom:1.5rem;padding-bottom:1.5rem;border-bottom:1px solid #f3f4f6; }
     .meta-item { display:flex;flex-direction:column;gap:.25rem; }
     .meta-label { font-size:.75rem;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.05em; }
+    .protocol-code { font-family:monospace;font-size:1rem;font-weight:700;color:#1f2937;letter-spacing:.1em; }
     .ticket-description h4 { font-size:.95rem;font-weight:600;margin-bottom:.5rem; }
     .ticket-description p { color:#4b5563;line-height:1.6; }
     .ticket-observations { margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid #f3f4f6; }
@@ -133,6 +164,13 @@ import { ShellComponent } from '../../../shared/shell/shell.component';
     .obs-date { font-size:.8rem;color:#9ca3af; }
     .obs-content { color:#4b5563;font-size:.9rem;line-height:1.5;margin:0; }
     .ticket-done-notice { margin-top:1.5rem;padding:.75rem 1rem;background:#d1fae5;color:#065f46;border-radius:8px;font-weight:500;font-size:.9rem;line-height:1.5; }
+    .ticket-assume { margin-top:1.5rem;padding:1rem;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px; }
+    .assume-notice { display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap; }
+    .assume-notice span { color:#1e40af;font-size:.9rem; }
+    .btn-assume { background:#1d4ed8;color:#fff;padding:.5rem 1.25rem;border:none;border-radius:8px;cursor:pointer;font-weight:600; }
+    .btn-assume:disabled { background:#93c5fd;cursor:not-allowed; }
+    .assigned-badge { color:#065f46;font-weight:500; }
+    .unassigned-badge { color:#9ca3af;font-style:italic; }
     .ticket-update { margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid #f3f4f6; }
     .ticket-update h4 { font-size:.95rem;font-weight:600;margin-bottom:1rem; }
     .form-group { margin-bottom:1rem; }
@@ -152,16 +190,25 @@ export class TicketDetailComponent implements OnInit {
 
   ticket = signal<Ticket | null>(null);
   statuses = signal<TicketStatus[]>([]);
+  sectorMembers = signal<User[]>([]);
   selectedStatus = '';
+  selectedAssignee = '';
   observation = '';
   updating = signal(false);
   updateError = signal('');
+  assuming = signal(false);
+  assumeError = signal('');
 
   private readonly DONE_STATUS_NAME = 'Concluído';
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id')!;
-    this.ticketService.getById(id).subscribe({ next: (t) => this.ticket.set(t) });
+    this.ticketService.getById(id).subscribe({
+      next: (t) => {
+        this.ticket.set(t);
+        this.sectorMembers.set(t.responsible_sector.members ?? []);
+      }
+    });
     this.ticketService.getStatuses().subscribe({ next: (r) => this.statuses.set(r.results) });
   }
 
@@ -186,7 +233,38 @@ export class TicketDetailComponent implements OnInit {
     const t = this.ticket();
     if (!user || !t) return false;
     if (user.is_admin) return true;
-    return true;
+    return t.responsible_sector.members.some(m => m.id === user.user_id);
+  }
+
+  canAssignOther(): boolean {
+    const user = this.auth.getCurrentUser();
+    if (!user) return false;
+    return user.is_admin || this.auth.canAssignTickets();
+  }
+
+  canAssume(): boolean {
+    const user = this.auth.getCurrentUser();
+    const t = this.ticket();
+    if (!user || !t || t.assigned_to) return false;
+    if (user.is_admin) return true;
+    return t.responsible_sector.members.some(m => m.id === user.user_id);
+  }
+
+  assumeTicket(): void {
+    const t = this.ticket();
+    if (!t) return;
+    this.assuming.set(true);
+    this.assumeError.set('');
+    this.ticketService.assign(t.id).subscribe({
+      next: (updated) => {
+        this.ticket.set(updated);
+        this.assuming.set(false);
+      },
+      error: (err) => {
+        this.assumeError.set(err?.error?.detail ?? 'Erro ao assumir chamado.');
+        this.assuming.set(false);
+      },
+    });
   }
 
   updateTicket(): void {
@@ -201,14 +279,21 @@ export class TicketDetailComponent implements OnInit {
     this.updating.set(true);
     this.updateError.set('');
 
-    const payload: { status_id?: string; observation?: string } = {};
+    const payload: { status_id?: string; observation?: string; assigned_to_id?: string | null } = {};
     if (this.selectedStatus) payload.status_id = this.selectedStatus;
     if (this.observation.trim()) payload.observation = this.observation.trim();
+    if (this.selectedAssignee === '__unassign__') {
+      payload.assigned_to_id = null;
+    } else if (this.selectedAssignee) {
+      payload.assigned_to_id = this.selectedAssignee;
+    }
 
     this.ticketService.update(t.id, payload).subscribe({
       next: (updated) => {
         this.ticket.set(updated);
+        this.sectorMembers.set(updated.responsible_sector.members ?? []);
         this.selectedStatus = '';
+        this.selectedAssignee = '';
         this.observation = '';
         this.updating.set(false);
       },

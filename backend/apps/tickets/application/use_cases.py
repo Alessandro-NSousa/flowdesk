@@ -127,6 +127,9 @@ class UpdateTicketUseCase:
             if assigned_to_id is None:
                 ticket.assigned_to = None
             else:
+                if str(assigned_to_id) != str(requesting_user.pk):
+                    if not requesting_user.is_admin and not requesting_user.can_assign_tickets:
+                        raise PermissionError("Você não tem permissão para atribuir chamados a outros membros.")
                 assigned_user = User.objects.get(pk=assigned_to_id)
                 if not ticket.responsible_sector.members.filter(pk=assigned_user.pk).exists():
                     raise ValueError("O usuário atribuído não é membro do setor responsável.")
@@ -168,7 +171,9 @@ class AssignTicketUseCase:
             if not ticket.responsible_sector.members.filter(pk=requesting_user.pk).exists():
                 raise PermissionError("Apenas membros do setor responsável podem assumir o chamado.")
 
-        if target_user_id:
+        if target_user_id and str(target_user_id) != str(requesting_user.pk):
+            if not requesting_user.is_admin and not requesting_user.can_assign_tickets:
+                raise PermissionError("Você não tem permissão para atribuir chamados a outros membros.")
             assigned = User.objects.get(pk=target_user_id)
             if not ticket.responsible_sector.members.filter(pk=assigned.pk).exists():
                 raise ValueError("O usuário alvo não é membro do setor responsável.")

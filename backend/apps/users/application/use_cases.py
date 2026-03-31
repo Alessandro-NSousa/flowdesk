@@ -26,6 +26,7 @@ class CreateUserUseCase:
         first_name: str,
         last_name: str,
         is_admin: bool = False,
+        can_assign_tickets: bool = False,
         sector_id: str | None = None,
     ) -> User:
         if User.objects.filter(email=email).exists():
@@ -39,6 +40,7 @@ class CreateUserUseCase:
             last_name=last_name,
             password=temp_password,
             is_admin=is_admin,
+            can_assign_tickets=can_assign_tickets,
             is_active=True,
             must_change_password=True,
         )

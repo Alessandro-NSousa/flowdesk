@@ -28,6 +28,7 @@ type ModalMode = 'create' | 'edit';
               <th>Nome</th>
               <th>E-mail</th>
               <th>Admin</th>
+              <th>Atribuir chamados</th>
               <th>Ativo</th>
               <th>Ações</th>
             </tr>
@@ -43,6 +44,14 @@ type ModalMode = 'create' | 'edit';
                   (click)="toggleAdmin(u)"
                   title="Clique para alternar permissão de admin"
                 >{{ u.is_admin ? 'Admin' : 'Membro' }}</button>
+              </td>
+              <td>
+                <button
+                  class="badge"
+                  [class]="u.can_assign_tickets ? 'badge-can-assign' : 'badge-no-assign'"
+                  (click)="toggleCanAssign(u)"
+                  title="Clique para alternar permissão de atribuir chamados"
+                >{{ u.can_assign_tickets ? 'Sim' : 'Não' }}</button>
               </td>
               <td>
                 <span class="badge" [class]="u.is_active ? 'badge-active' : 'badge-inactive'">
@@ -89,6 +98,11 @@ type ModalMode = 'create' | 'edit';
           <div class="field field-row">
             <input [(ngModel)]="form.is_admin" type="checkbox" id="is_admin" />
             <label for="is_admin">Administrador</label>
+          </div>
+
+          <div class="field field-row">
+            <input [(ngModel)]="form.can_assign_tickets" type="checkbox" id="can_assign_tickets" />
+            <label for="can_assign_tickets">Pode atribuir chamados a outros membros</label>
           </div>
 
           <p *ngIf="modalMode() === 'create'" class="info-tip">
@@ -150,6 +164,8 @@ type ModalMode = 'create' | 'edit';
     .badge { display: inline-block; padding: .2rem .6rem; border-radius: 20px; font-size: .75rem; font-weight: 600; border: none; cursor: pointer; }
     .badge-admin { background: #ede9fe; color: #5b21b6; }
     .badge-member { background: #f3f4f6; color: #374151; }
+    .badge-can-assign { background: #dbeafe; color: #1e40af; }
+    .badge-no-assign { background: #f3f4f6; color: #374151; }
     .badge-active { background: #d1fae5; color: #065f46; cursor: default; }
     .badge-inactive { background: #fee2e2; color: #991b1b; cursor: default; }
     .loading, .empty { color: #6b7280; text-align: center; padding: 3rem; }
@@ -185,11 +201,12 @@ export class UserListComponent implements OnInit {
 
   private editingId: string | null = null;
 
-  form: { first_name: string; last_name: string; email: string; is_admin: boolean; sector_id: string | null } = {
+  form: { first_name: string; last_name: string; email: string; is_admin: boolean; can_assign_tickets: boolean; sector_id: string | null } = {
     first_name: '',
     last_name: '',
     email: '',
     is_admin: false,
+    can_assign_tickets: false,
     sector_id: null,
   };
 
@@ -210,7 +227,7 @@ export class UserListComponent implements OnInit {
 
   openCreate(): void {
     this.editingId = null;
-    this.form = { first_name: '', last_name: '', email: '', is_admin: false, sector_id: null };
+    this.form = { first_name: '', last_name: '', email: '', is_admin: false, can_assign_tickets: false, sector_id: null };
     this.error.set(null);
     this.modalMode.set('create');
     this.showModal.set(true);
@@ -218,7 +235,7 @@ export class UserListComponent implements OnInit {
 
   openEdit(user: User): void {
     this.editingId = user.id;
-    this.form = { first_name: user.first_name, last_name: user.last_name, email: user.email, is_admin: user.is_admin, sector_id: null };
+    this.form = { first_name: user.first_name, last_name: user.last_name, email: user.email, is_admin: user.is_admin, can_assign_tickets: user.can_assign_tickets, sector_id: null };
     this.error.set(null);
     this.modalMode.set('edit');
     this.showModal.set(true);
@@ -237,6 +254,7 @@ export class UserListComponent implements OnInit {
         first_name: this.form.first_name,
         last_name: this.form.last_name,
         is_admin: this.form.is_admin,
+        can_assign_tickets: this.form.can_assign_tickets,
         sector_id: this.form.sector_id || null,
       };
       this.saving.set(true);
@@ -249,6 +267,7 @@ export class UserListComponent implements OnInit {
         first_name: this.form.first_name,
         last_name: this.form.last_name,
         is_admin: this.form.is_admin,
+        can_assign_tickets: this.form.can_assign_tickets,
       };
       this.saving.set(true);
       this.userService.update(this.editingId!, payload).subscribe({
@@ -264,6 +283,12 @@ export class UserListComponent implements OnInit {
 
   toggleAdmin(user: User): void {
     this.userService.update(user.id, { is_admin: !user.is_admin }).subscribe({
+      next: (u) => this.users.update((list) => list.map((x) => (x.id === u.id ? u : x))),
+    });
+  }
+
+  toggleCanAssign(user: User): void {
+    this.userService.update(user.id, { can_assign_tickets: !user.can_assign_tickets }).subscribe({
       next: (u) => this.users.update((list) => list.map((x) => (x.id === u.id ? u : x))),
     });
   }
