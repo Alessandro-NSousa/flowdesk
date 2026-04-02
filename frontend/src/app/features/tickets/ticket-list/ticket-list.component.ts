@@ -3,7 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { TicketService, TicketFilters } from '../../../core/services/ticket.service';
-import { Ticket, TicketStatus } from '../../../core/models';
+import { SectorService } from '../../../core/services/sector.service';
+import { Ticket, TicketStatus, Sector } from '../../../core/models';
 import { ShellComponent } from '../../../shared/shell/shell.component';
 
 @Component({
@@ -20,30 +21,39 @@ import { ShellComponent } from '../../../shared/shell/shell.component';
 
         <!-- Filtros RF24 -->
         <div class="filters">
-          <select [(ngModel)]="filters.status" (ngModelChange)="applyFilters()" class="filter-control">
+          <select [(ngModel)]="filters.status" class="filter-control">
             <option value="">Todos os status</option>
             <option *ngFor="let s of statuses()" [value]="s.id">{{ s.name }}</option>
+          </select>
+          <select [(ngModel)]="filters.requesting_sector" class="filter-control">
+            <option value="">Setor solicitante</option>
+            <option *ngFor="let s of sectors()" [value]="s.id">{{ s.name }}</option>
+          </select>
+          <select [(ngModel)]="filters.responsible_sector" class="filter-control">
+            <option value="">Setor responsável</option>
+            <option *ngFor="let s of sectors()" [value]="s.id">{{ s.name }}</option>
           </select>
           <input
             type="text"
             [(ngModel)]="filters.protocol"
-            (input)="applyFilters()"
             placeholder="Filtrar por protocolo"
             class="filter-control"
           />
           <input
             type="text"
             [(ngModel)]="filters.search"
-            (input)="applyFilters()"
             placeholder="Buscar por título ou descrição"
             class="filter-control"
           />
           <label class="filter-label">De:
-            <input type="date" [(ngModel)]="filters.created_after" (ngModelChange)="applyFilters()" class="filter-control" />
+            <input type="date" [(ngModel)]="filters.created_after" class="filter-control" />
           </label>
           <label class="filter-label">Até:
-            <input type="date" [(ngModel)]="filters.created_before" (ngModelChange)="applyFilters()" class="filter-control" />
+            <input type="date" [(ngModel)]="filters.created_before" class="filter-control" />
           </label>
+        </div>
+        <div class="filters-action">
+          <button (click)="applyFilters()" class="btn btn-search">Buscar</button>
         </div>
 
         <div *ngIf="loading()" class="loading">Carregando...</div>
@@ -93,7 +103,9 @@ import { ShellComponent } from '../../../shared/shell/shell.component';
     .btn { padding:.5rem 1rem;border:none;border-radius:6px;cursor:pointer;font-weight:600; }
     .btn-primary { background:#4f46e5;color:#fff; }
     .btn-outline { padding:.4rem .9rem;border:1px solid #d1d5db;background:#fff;border-radius:6px;cursor:pointer; }
-    .filters { display:flex;gap:.75rem;margin-bottom:1.25rem;flex-wrap:wrap; }
+    .btn-search { background:#4f46e5;color:#fff;min-width:120px; }
+    .filters { display:flex;gap:.75rem;margin-bottom:.75rem;flex-wrap:wrap;align-items:center; }
+    .filters-action { display:flex;justify-content:center;margin-bottom:1.25rem; }
     .filter-control { padding:.45rem .75rem;border:1px solid #d1d5db;border-radius:6px;font-size:.85rem;min-width:140px; }
     .table { width:100%;border-collapse:collapse;font-size:.85rem;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.07); }
     .unassigned-row { background:#fffbeb; }
@@ -114,23 +126,32 @@ import { ShellComponent } from '../../../shared/shell/shell.component';
 })
 export class TicketListComponent implements OnInit {
   private ticketService = inject(TicketService);
+  private sectorService = inject(SectorService);
 
   tickets = signal<Ticket[]>([]);
   statuses = signal<TicketStatus[]>([]);
+  sectors = signal<Sector[]>([]);
   loading = signal(true);
   currentPage = signal(1);
   totalPages = signal(1);
 
-  filters: TicketFilters = { status: '' };
+  filters: TicketFilters = { status: '', requesting_sector: '', responsible_sector: '' };
 
   ngOnInit(): void {
     this.loadStatuses();
+    this.loadSectors();
     this.loadTickets();
   }
 
   private loadStatuses(): void {
     this.ticketService.getStatuses().subscribe({
       next: (res) => this.statuses.set(res.results),
+    });
+  }
+
+  private loadSectors(): void {
+    this.sectorService.getAll().subscribe({
+      next: (res) => this.sectors.set(res.results),
     });
   }
 
