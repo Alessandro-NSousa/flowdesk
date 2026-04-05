@@ -46,10 +46,10 @@ import { ShellComponent } from '../../../shared/shell/shell.component';
             class="filter-control"
           />
           <label class="filter-label">De:
-            <input type="date" [(ngModel)]="filters.created_after" class="filter-control" />
+            <input type="date" [(ngModel)]="filters.created_after" class="filter-control" (input)="limitYear($event, 'created_after')" />
           </label>
           <label class="filter-label">Até:
-            <input type="date" [(ngModel)]="filters.created_before" class="filter-control" />
+            <input type="date" [(ngModel)]="filters.created_before" class="filter-control" (input)="limitYear($event, 'created_before')" />
           </label>
         </div>
         <div class="filters-action">
@@ -183,6 +183,19 @@ export class TicketListComponent implements OnInit {
     if (this.currentPage() < this.totalPages()) {
       this.currentPage.update((p) => p + 1);
       this.loadTickets();
+    }
+  }
+
+  limitYear(event: Event, field: 'created_after' | 'created_before'): void {
+    const input = event.target as HTMLInputElement;
+    const value = input.value;
+    if (!value) return;
+    const parts = value.split('-');
+    if (parts[0] && parts[0].length > 4) {
+      parts[0] = parts[0].slice(0, 4);
+      const newValue = parts.join('-');
+      input.value = newValue;
+      this.filters[field] = newValue;
     }
   }
 

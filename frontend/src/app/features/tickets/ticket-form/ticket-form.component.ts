@@ -32,10 +32,12 @@ import { ShellComponent } from '../../../shared/shell/shell.component';
             <div class="form-row">
               <div class="form-group">
                 <label>Setor solicitante *</label>
-                <select [(ngModel)]="form.requesting_sector_id" name="requestingSector" required class="form-control">
+                <select [(ngModel)]="form.requesting_sector_id" name="requestingSector" required class="form-control"
+                  [disabled]="!isAdmin && requestingSectors().length === 1">
                   <option value="">Selecione...</option>
-                  <option *ngFor="let s of mySectors()" [value]="s.id">{{ s.name }}</option>
+                  <option *ngFor="let s of requestingSectors()" [value]="s.id">{{ s.name }}</option>
                 </select>
+                <small *ngIf="isAdmin && requestingSectors().length === 0" class="hint-text">Carregando setores...</small>
               </div>
 
               <div class="form-group">
@@ -60,7 +62,7 @@ import { ShellComponent } from '../../../shared/shell/shell.component';
             <div class="form-actions">
               <button type="button" (click)="cancel()" class="btn btn-outline">Cancelar</button>
               <button type="submit" class="btn btn-primary" [disabled]="loading()">
-                {{ loading() ? 'Criando...' : 'Criar Chamado' }}
+                {{ loading() ? 'Criando...' : 'Cadastrar' }}
               </button>
             </div>
           </form>
@@ -94,6 +96,7 @@ import { ShellComponent } from '../../../shared/shell/shell.component';
     .form-control { width:100%;padding:.6rem .9rem;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem; }
     .form-control:focus { outline:none;border-color:#4f46e5; }
     textarea.form-control { resize:vertical; }
+    .hint-text { color:#6b7280;font-size:.78rem;margin-top:.25rem;display:block; }
     .form-actions { display:flex;justify-content:flex-end;gap:.75rem;margin-top:1.5rem; }
     .btn { padding:.6rem 1.25rem;border:none;border-radius:8px;cursor:pointer;font-weight:600; }
     .btn-primary { background:#4f46e5;color:#fff; }
@@ -119,10 +122,15 @@ export class TicketFormComponent implements OnInit {
 
   mySectors = signal<Sector[]>([]);
   allSectors = signal<Sector[]>([]);
+  requestingSectors = signal<Sector[]>([]);
   responsibleSectorMembers = signal<User[]>([]);
   loading = signal(false);
   error = signal('');
   successTicket = signal<Ticket | null>(null);
+
+  get isAdmin(): boolean {
+    return this.auth.isAdmin();
+  }
 
   form: {
     title: string;
@@ -140,10 +148,30 @@ export class TicketFormComponent implements OnInit {
 
   ngOnInit(): void {
     this.sectorService.getMine().subscribe({
-      next: (res) => this.mySectors.set(res.results),
+      next: (res) => {
+        this.mySectors.set(res.results);
+        if (!this.isAdmin) {
+          // Não-admin: dropdown restrito aos seus setores, pré-seleciona o primeiro
+          this.requestingSectors.set(res.results);
+          if (res.results.length === 1) {
+            this.form.requesting_sector_id = res.results[0].id;
+          }
+        } else if (res.results.length > 0) {
+          // Admin com setor: pré-seleciona o primeiro dos seus setores
+          this.requestingSectors.set(res.results);
+          this.form.requesting_sector_id = res.results[0].id;
+        }
+        // Admin sem setor: aguarda allSectors para popular requestingSectors
+      },
     });
     this.sectorService.getAll().subscribe({
-      next: (res) => this.allSectors.set(res.results),
+      next: (res) => {
+        this.allSectors.set(res.results);
+        // Admin sem setor associado: usa todos os setores no dropdown solicitante
+        if (this.isAdmin && this.mySectors().length === 0) {
+          this.requestingSectors.set(res.results);
+        }
+      },
     });
   }
 
