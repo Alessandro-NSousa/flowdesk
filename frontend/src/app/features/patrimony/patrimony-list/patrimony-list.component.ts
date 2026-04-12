@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PatrimonyService } from '../../../core/services/patrimony.service';
 import { SectorService } from '../../../core/services/sector.service';
-import { UserService } from '../../../core/services/user.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { FeatureService } from '../../../core/services/feature.service';
 import { Patrimony, PatrimonyCondition, PatrimonySituation, Sector, User } from '../../../core/models';
@@ -94,16 +93,16 @@ import { ShellComponent } from '../../../shared/shell/shell.component';
               </div>
               <div class="form-group">
                 <label>Setor *</label>
-                <select [(ngModel)]="form.sector_id" class="form-control">
+                <select [(ngModel)]="form.sector_id" (change)="onSectorChange()" class="form-control">
                   <option value="">Selecione...</option>
                   <option *ngFor="let s of formSectors()" [value]="s.id">{{ s.name }}</option>
                 </select>
               </div>
               <div class="form-group">
                 <label>Usuário responsável</label>
-                <select [(ngModel)]="form.user_id" class="form-control">
-                  <option value="">Nenhum (patrimônio do setor)</option>
-                  <option *ngFor="let u of users()" [value]="u.id">{{ u.first_name }} {{ u.last_name }}</option>
+                <select [(ngModel)]="form.user_id" class="form-control" [disabled]="!form.sector_id">
+                  <option value="">{{ form.sector_id ? 'Nenhum (patrimônio do setor)' : 'Selecione um setor primeiro' }}</option>
+                  <option *ngFor="let u of sectorMembers()" [value]="u.id">{{ u.first_name }} {{ u.last_name }}</option>
                 </select>
               </div>
               <div class="form-group">
@@ -182,14 +181,12 @@ import { ShellComponent } from '../../../shared/shell/shell.component';
 export class PatrimonyListComponent implements OnInit {
   private patrimonyService = inject(PatrimonyService);
   private sectorService = inject(SectorService);
-  private userService = inject(UserService);
   private auth = inject(AuthService);
   private featureService = inject(FeatureService);
 
   items = signal<Patrimony[]>([]);
   sectors = signal<Sector[]>([]);
   mySectors = signal<Sector[]>([]);
-  users = signal<User[]>([]);
   loading = signal(true);
   showModal = signal(false);
   saving = signal(false);
@@ -213,7 +210,6 @@ export class PatrimonyListComponent implements OnInit {
     this.load();
     this.sectorService.getAll().subscribe({ next: (r) => this.sectors.set(r.results) });
     this.sectorService.getMine().subscribe({ next: (r) => this.mySectors.set(r.results) });
-    this.userService.listAll().subscribe({ next: (users) => this.users.set(users) });
   }
 
   isAdmin(): boolean {
@@ -222,6 +218,18 @@ export class PatrimonyListComponent implements OnInit {
 
   canEdit(): boolean {
     return this.isAdmin() || (this.featureService.hasFeature('patrimony') && this.auth.canManagePatrimony());
+  }
+
+  /** Retorna os membros do setor atualmente selecionado no formulário. */
+  sectorMembers(): User[] {
+    if (!this.form.sector_id) return [];
+    const sector = this.sectors().find(s => s.id === this.form.sector_id);
+    return sector?.members ?? [];
+  }
+
+  /** Ao trocar o setor, limpa o responsável para evitar inconsistência. */
+  onSectorChange(): void {
+    this.form.user_id = '';
   }
 
   /** Setores disponíveis no formulário: todos os setores para qualquer usuário */
